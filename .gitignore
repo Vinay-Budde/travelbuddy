@@ -1,0 +1,25 @@
+## Build and Test Artifacts
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Database & Local Data
+*.db
+*.db-shm
+*.db-wal
+travelbuddy.db
+
+## OS Generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Visual Studio / VS Code
+.vs/
+.vscode/
+*.swp
+*.*~

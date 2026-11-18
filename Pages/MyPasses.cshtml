@@ -1,0 +1,194 @@
+@page
+@model TravelBuddy.Pages.MyPassesModel
+@{
+    ViewData["Title"] = "My Passes & Ticket Wallet";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded-3 shadow-sm border">
+            <div>
+                <h3 class="fw-bold mb-0 text-navy" style="color: #0F172A;"><i class="bi bi-wallet2 me-2 text-primary"></i> Digital Pass Wallet</h3>
+                <p class="text-muted small mb-0">Active travel credentials, anti-passback dynamic QR generator, and cancellation management.</p>
+            </div>
+            <a asp-page="/Index" class="btn btn-saffron btn-sm"><i class="bi bi-plus-circle me-1"></i> Buy New Pass</a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Passes List Column -->
+    <div class="col-lg-6 mb-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-card-checklist me-1 text-primary"></i> Your Purchased Passes</h5>
+
+        @if (!Model.Passes.Any())
+        {
+            <div class="tb-card p-5 text-center">
+                <i class="bi bi-ticket-detailed fs-1 text-muted mb-3 d-block"></i>
+                <h5 class="fw-bold text-dark">No Passes Yet</h5>
+                <p class="text-muted small">You haven't purchased any transit passes yet. Browse available options in the catalogue.</p>
+                <a asp-page="/Index" class="btn btn-saffron btn-sm mt-2">Explore Passes</a>
+            </div>
+        }
+        else
+        {
+            @foreach (var pass in Model.Passes)
+            {
+                <div class="tb-card p-3 mb-3 border-start border-4 @(pass.Status == TravelBuddy.Models.PassStatus.Active ? "border-success" : (pass.Status == TravelBuddy.Models.PassStatus.Cancelled ? "border-danger" : "border-secondary"))">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge @(pass.Status == TravelBuddy.Models.PassStatus.Active ? "bg-success" : "bg-secondary") mb-1">
+                                @pass.Status
+                            </span>
+                            <span class="badge bg-light text-dark border ms-1">@pass.PassType</span>
+                            <h5 class="fw-bold mb-1 mt-1 text-dark">@(pass.OrderItem?.ProductNameSnapshot ?? "Transit Pass")</h5>
+                            <p class="text-muted small mb-1">Pass Ref: <code>@pass.PassNumber</code></p>
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-clock me-1"></i> Valid until: <strong>@pass.ValidUntilUtc.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-2 pt-2 border-top">
+                        @if (pass.Status == TravelBuddy.Models.PassStatus.Active)
+                        {
+                            <button class="btn btn-sm btn-outline-navy flex-fill" onclick="loadDynamicQr(@pass.PassId, '@pass.PassNumber')">
+                                <i class="bi bi-qr-code me-1"></i> Display Live QR
+                            </button>
+
+                            @if (Model.EligibilityMap.ContainsKey(pass.PassId) && Model.EligibilityMap[pass.PassId])
+                            {
+                                <button class="btn btn-sm btn-outline-danger" onclick="requestCancellation(@pass.PassId, '@pass.PassNumber')">
+                                    <i class="bi bi-x-circle me-1"></i> Cancel &amp; Refund
+                                </button>
+                            }
+                        }
+                        else if (pass.Status == TravelBuddy.Models.PassStatus.Cancelled)
+                        {
+                            <span class="text-danger small"><i class="bi bi-info-circle me-1"></i> Cancelled &amp; 100% Refunded</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted small"><i class="bi bi-check2-all me-1"></i> Expired / Journey completed</span>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Live QR Dynamic Panel Column -->
+    <div class="col-lg-6 mb-4">
+        <div class="tb-card p-4 text-center sticky-top" style="top: 1rem;">
+            <h5 class="fw-bold mb-1" style="color: #0F172A;"><i class="bi bi-shield-check text-success me-1"></i> Dynamic Boarding Credential</h5>
+            <p class="text-muted small mb-3">Anti-screenshot rotating token. Refreshes periodically with server-validated cryptographic material.</p>
+
+            <div id="qrPlaceholder" class="p-5 border rounded-3 bg-light my-3">
+                <i class="bi bi-qr-code fs-1 text-secondary d-block mb-2"></i>
+                <p class="text-muted small mb-0">Select any active pass on the left to display its live QR credential for bus boarding.</p>
+            </div>
+
+            <div id="qrDisplay" class="d-none">
+                <div class="p-3 bg-white border rounded-3 shadow-sm d-inline-block position-relative mb-3">
+                    <img id="qrImage" src="" alt="Dynamic QR Code" style="width: 220px; height: 220px; object-fit: contain;" />
+                    <div id="refreshSpinner" class="spinner-border spinner-border-sm text-primary position-absolute top-0 end-0 m-2 d-none" role="status"></div>
+                </div>
+
+                <div class="mb-2">
+                    <span class="badge bg-navy text-white px-3 py-1" id="qrPassRef" style="background-color: #0F172A;">•••• 0000</span>
+                </div>
+
+                <div class="progress mb-2 mx-auto" style="height: 6px; max-width: 240px;">
+                    <div id="qrProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%"></div>
+                </div>
+                <div class="text-muted small" id="qrExpiryNote">Rotating token valid for 30s</div>
+
+                <div class="p-2 mt-3 rounded bg-light border small text-start mx-auto" style="max-width: 380px;">
+                    <div class="fw-semibold text-secondary"><i class="bi bi-shield-lock text-primary me-1"></i> Boarding Rule Verification:</div>
+                    <ul class="ps-3 mb-0 text-muted mt-1">
+                        <li>Show this dynamic code to the conductor's scanner device.</li>
+                        <li>Single Journey tickets are automatically consumed on 1st scan.</li>
+                        <li>Unlimited passes allow multi-boarding with duplicate replay guard.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let activePassId = null;
+    let refreshTimer = null;
+    let countdownTimer = null;
+    let timeLeft = 30;
+
+    async function loadDynamicQr(passId, passNumber) {
+        activePassId = passId;
+        document.getElementById('qrPlaceholder').classList.add('d-none');
+        document.getElementById('qrDisplay').classList.remove('d-none');
+        document.getElementById('qrPassRef').innerText = 'Pass: ' + passNumber;
+
+        await fetchQrToken();
+
+        // Setup 30s auto-refresh
+        if (refreshTimer) clearInterval(refreshTimer);
+        if (countdownTimer) clearInterval(countdownTimer);
+
+        timeLeft = 30;
+        countdownTimer = setInterval(() => {
+            timeLeft--;
+            const progress = (timeLeft / 30) * 100;
+            document.getElementById('qrProgressBar').style.width = progress + '%';
+            document.getElementById('qrExpiryNote').innerText = 'Rotating token valid for ' + timeLeft + 's';
+            if (timeLeft <= 0) {
+                timeLeft = 30;
+                fetchQrToken();
+            }
+        }, 1000);
+    }
+
+    async function fetchQrToken() {
+        if (!activePassId) return;
+        document.getElementById('refreshSpinner').classList.remove('d-none');
+
+        try {
+            const resp = await fetch(`/api/v1/passes/${activePassId}/qr`);
+            if (resp.ok) {
+                const data = await resp.json();
+                document.getElementById('qrImage').src = data.qrBase64Image;
+            } else {
+                console.error('Failed to load QR');
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            document.getElementById('refreshSpinner').classList.add('d-none');
+        }
+    }
+
+    async function requestCancellation(passId, passNum) {
+        if (!confirm(`Are you sure you want to cancel pass ${passNum}?\nUnder the Travel Buddy MVP Cancellation Policy, you will receive a 100% full refund to your original payment method because this pass has not yet been used for boarding.`)) {
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/api/v1/passes/${passId}/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: 'Passenger cancelled before boarding' })
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Cancellation rejected: ' + data.message);
+            }
+        } catch (e) {
+            alert('Error processing cancellation request.');
+        }
+    }
+</script>
+}

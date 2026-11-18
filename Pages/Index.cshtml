@@ -1,0 +1,282 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Pass Catalogue & City Corridors";
+}
+
+<!-- Hero Section with Modern Visual Accents -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="hero-banner d-flex flex-column justify-content-center">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <span class="badge bg-warning text-dark fw-bold px-3 py-2 rounded-pill mb-3">
+                        <i class="bi bi-stars me-1"></i> Next-Gen Smart Transit System
+                    </span>
+                    <h1 class="display-5 fw-bold mb-3 tracking-tight">Seamless Commutes with Verifiable Digital Bus Passes</h1>
+                    <p class="lead text-light text-opacity-75 mb-4" style="max-width: 650px;">
+                        Purchase instant single-journey, daily, weekly, or monthly transit passes. Experience simulated Indian Razorpay checkout and secure, rotating dynamic QR boarding credentials.
+                    </p>
+                    <div class="d-flex flex-wrap gap-3">
+                        <a href="#passes-grid" class="btn btn-saffron btn-lg px-4 py-3"><i class="bi bi-cart3 me-2"></i> Browse Passes</a>
+                        <a asp-page="/MyPasses" class="btn btn-outline-light btn-lg px-4 py-3"><i class="bi bi-wallet2 me-2"></i> Open Wallet</a>
+                        <a asp-page="/Operator" class="btn btn-outline-warning btn-lg px-3 py-3"><i class="bi bi-upc-scan me-2"></i> Test Conductor Scanner</a>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center mt-4 mt-lg-0 d-none d-lg-block">
+                    <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-20 backdrop-blur shadow-lg">
+                        <i class="bi bi-qr-code fs-1 text-warning mb-2 d-block"></i>
+                        <h6 class="text-white fw-bold mb-1">Anti-Passback Protected</h6>
+                        <small class="text-light text-opacity-75 d-block mb-3">Opaque rotating tokens refresh every 30 seconds</small>
+                        <span class="badge bg-success px-3 py-2"><i class="bi bi-shield-check me-1"></i> Ready for Boarding</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pass Catalogue Grid -->
+<div class="row mb-5" id="passes-grid">
+    <div class="col-12 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <div>
+                <h3 class="fw-bold mb-1 text-navy" style="color: #0F172A;"><i class="bi bi-ticket-detailed text-primary me-2"></i> Available Transit Pass Products</h3>
+                <p class="text-muted small mb-0">Select a pass product customized to your route or unlimited daily city commute.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
+                    <i class="bi bi-credit-card me-1"></i> Razorpay Test Mode Ready
+                </span>
+            </div>
+        </div>
+    </div>
+
+    @foreach (var prod in Model.FareProducts)
+    {
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="pass-card @(prod.PassType == TravelBuddy.Models.PassType.Monthly ? "featured" : "")">
+                @if (prod.PassType == TravelBuddy.Models.PassType.Monthly)
+                {
+                    <span class="position-absolute top-0 end-0 bg-primary text-white text-uppercase px-3 py-1 rounded-bl small fw-bold" style="font-size: 0.7rem; border-bottom-left-radius: 12px; border-top-right-radius: 14px;">
+                        Recommended
+                    </span>
+                }
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge bg-light text-secondary border px-2 py-1">@prod.PassType</span>
+                        <span class="small text-muted fw-semibold"><i class="bi bi-calendar3 me-1"></i> @prod.ValidityValue @prod.ValidityUnit</span>
+                    </div>
+
+                    <h4 class="fw-bold text-navy mb-2" style="color: #0F172A;">@prod.Name</h4>
+                    <p class="text-muted small mb-3">@prod.Description</p>
+
+                    <div class="p-3 bg-light rounded-3 border mb-4">
+                        <div class="d-flex align-items-center gap-2 small text-secondary mb-2">
+                            <i class="bi bi-geo-alt-fill text-danger"></i>
+                            <span class="fw-semibold">Coverage:</span>
+                            <span class="text-dark">@prod.CoverageType</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 small text-secondary">
+                            <i class="bi bi-shield-lock-fill text-primary"></i>
+                            <span class="fw-semibold">Policy:</span>
+                            <span class="text-dark">
+                                @(prod.PassType == TravelBuddy.Models.PassType.SingleJourney ? "1 Boarding Trip" : "Unlimited Boardings")
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="d-flex align-items-baseline mb-3">
+                        <span class="fs-2 fw-bold text-navy" style="color: #0F172A;">₹@prod.Price.ToString("F2")</span>
+                        <span class="text-muted small ms-1">/ @prod.ValidityUnit.ToLower()</span>
+                    </div>
+
+                    <button class="btn btn-saffron w-100 py-2 fw-bold d-flex justify-content-center align-items-center gap-2" 
+                            onclick="initiateCheckout(@prod.FareProductId, '@prod.Name', @prod.Price)">
+                        <i class="bi bi-lightning-charge-fill"></i> Purchase Pass
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Published Corridors & Stops with Visual Route Map -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="tb-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+                <h4 class="fw-bold mb-0 text-navy" style="color: #0F172A;">
+                    <i class="bi bi-signpost-2-fill me-2 text-warning"></i> Transit Corridors &amp; Station Sequence
+                </h4>
+                <span class="badge bg-light text-muted border">Real-Time Schedule Matrix</span>
+            </div>
+
+            <div class="row g-4">
+                @foreach (var route in Model.PublishedRoutes)
+                {
+                    <div class="col-lg-6">
+                        <div class="p-4 border rounded-3 bg-light h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-bold mb-0 text-navy">@route.Name</h5>
+                                <span class="badge bg-navy text-white px-2 py-1">@route.RouteCode</span>
+                            </div>
+                            <p class="text-muted small mb-3">@route.Description</p>
+                            
+                            <div class="small fw-bold text-secondary mb-2"><i class="bi bi-arrow-right-circle-fill text-primary me-1"></i> Bus Stop Sequence:</div>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var rs in route.RouteStops.OrderBy(s => s.StopSequence))
+                                {
+                                    <div class="d-flex align-items-center gap-2 bg-white p-2 rounded border-start border-3 border-primary">
+                                        <span class="badge bg-light text-dark border">#@rs.StopSequence</span>
+                                        <span class="fw-semibold text-dark">@rs.Stop?.Name</span>
+                                        <small class="text-muted ms-auto"><code>@rs.Stop?.StopCode</code></small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Razorpay Interactive Test Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-2xl" style="border-radius: 20px; overflow: hidden;">
+            <div class="modal-header text-white p-4" style="background: linear-gradient(135deg, #0F172A, #1E293B);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-2 bg-white bg-opacity-10 rounded-3">
+                        <i class="bi bi-credit-card-2-front fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">Razorpay Test Checkout</h5>
+                        <small class="text-light text-opacity-75">Simulated Payment Gateway (Sandbox)</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-4">
+                <div class="text-center p-3 bg-light rounded-3 border mb-3">
+                    <span class="text-muted small text-uppercase fw-semibold d-block">Order Summary</span>
+                    <h4 class="fw-bold text-navy my-1" id="modalProductName">Transit Pass</h4>
+                    <div class="display-6 fw-bold text-success" id="modalPrice">₹0.00</div>
+                    <small class="text-muted" id="modalOrderInfo">Order Ref: Pending Generation</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">Choose Payment Method</label>
+                    <div class="list-group gap-2">
+                        <label class="list-group-item d-flex gap-3 align-items-center rounded-3 border cursor-pointer">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="payMethod" value="UPI" checked>
+                            <div class="flex-grow-1">
+                                <strong class="d-block text-dark"><i class="bi bi-qr-code text-primary me-1"></i> Instant UPI / QR</strong>
+                                <small class="text-muted">Simulated VPA: success@razorpay</small>
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success">Zero Fee</span>
+                        </label>
+                        <label class="list-group-item d-flex gap-3 align-items-center rounded-3 border cursor-pointer">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="payMethod" value="Card">
+                            <div class="flex-grow-1">
+                                <strong class="d-block text-dark"><i class="bi bi-credit-card text-warning me-1"></i> Debit / Credit Card</strong>
+                                <small class="text-muted">Visa, Mastercard, RuPay Sandbox</small>
+                            </div>
+                        </label>
+                        <label class="list-group-item d-flex gap-3 align-items-center rounded-3 border cursor-pointer">
+                            <input class="form-check-input flex-shrink-0" type="radio" name="payMethod" value="NetBanking">
+                            <div class="flex-grow-1">
+                                <strong class="d-block text-dark"><i class="bi bi-bank text-info me-1"></i> Net Banking</strong>
+                                <small class="text-muted">SBI, HDFC, ICICI, Axis Bank</small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 small mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-check fs-5 text-info"></i>
+                    <span>Verifies HMAC-SHA256 signature server-side and issues cryptographic credential.</span>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light p-3">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-saffron px-4" id="btnConfirmPay" onclick="executePayment()">
+                    <i class="bi bi-check-circle me-1"></i> Confirm &amp; Activate Pass
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let currentOrder = null;
+
+    async function initiateCheckout(productId, productName, price) {
+        document.getElementById('modalProductName').innerText = productName;
+        document.getElementById('modalPrice').innerText = '₹' + price.toFixed(2);
+        
+        const modal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+        modal.show();
+
+        try {
+            const resp = await fetch('/api/v1/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fareProductId: productId, quantity: 1 })
+            });
+
+            if (!resp.ok) {
+                alert('Please sign in to order a pass.');
+                return;
+            }
+
+            currentOrder = await resp.json();
+            document.getElementById('modalOrderInfo').innerText = 'Order: ' + currentOrder.orderNumber + ' • RZP Ref: ' + currentOrder.razorpayOrderId;
+        } catch (err) {
+            console.error(err);
+            alert('Failed to connect to backend.');
+        }
+    }
+
+    async function executePayment() {
+        if (!currentOrder) return;
+        const btn = document.getElementById('btnConfirmPay');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
+
+        const paymentId = 'pay_sim_' + Math.random().toString(36).substring(2, 10);
+        const signature = 'simulated_signature';
+
+        try {
+            const verifyResp = await fetch('/api/v1/payments/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderId: currentOrder.orderId,
+                    razorpayOrderId: currentOrder.razorpayOrderId,
+                    razorpayPaymentId: paymentId,
+                    razorpaySignature: signature
+                })
+            });
+
+            const result = await verifyResp.json();
+            if (result.success) {
+                window.location.href = '/MyPasses';
+            } else {
+                alert('Verification rejected: ' + result.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Confirm & Activate Pass';
+            }
+        } catch (err) {
+            alert('Payment communication error.');
+            btn.disabled = false;
+        }
+    }
+</script>
+}

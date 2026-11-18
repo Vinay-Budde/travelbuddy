@@ -1,0 +1,228 @@
+@page
+@model TravelBuddy.Pages.AdminModel
+@{
+    ViewData["Title"] = "Admin Portal & Dashboard";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded-3 shadow-sm border">
+            <div>
+                <h3 class="fw-bold mb-0 text-navy" style="color: #0F172A;"><i class="bi bi-shield-lock me-2 text-primary"></i> Administrator Operations Portal</h3>
+                <p class="text-muted small mb-0">System metrics, transaction review, pass issuance controls, refunds, and audit trail.</p>
+            </div>
+            <span class="badge bg-primary px-3 py-2">Role: System Admin</span>
+        </div>
+    </div>
+</div>
+
+<!-- Metrics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="tb-card p-3">
+            <div class="text-muted small fw-semibold">Total Revenue</div>
+            <div class="fs-3 fw-bold text-success">₹@Model.TotalRevenue.ToString("F2")</div>
+            <div class="small text-muted mt-1"><i class="bi bi-credit-card me-1"></i> Razorpay verified</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="tb-card p-3">
+            <div class="text-muted small fw-semibold">Active Passes</div>
+            <div class="fs-3 fw-bold text-primary">@Model.ActivePassesCount</div>
+            <div class="small text-muted mt-1"><i class="bi bi-qr-code me-1"></i> Valid in system</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="tb-card p-3">
+            <div class="text-muted small fw-semibold">Total Boardings</div>
+            <div class="fs-3 fw-bold text-navy">@Model.ValidationsCount</div>
+            <div class="small text-muted mt-1"><i class="bi bi-bus-front me-1"></i> Scans logged</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="tb-card p-3">
+            <div class="text-muted small fw-semibold">Refunds Processed</div>
+            <div class="fs-3 fw-bold text-danger">₹@Model.TotalRefunds.ToString("F2")</div>
+            <div class="small text-muted mt-1"><i class="bi bi-arrow-counterclockwise me-1"></i> Policy compliant</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Admin modules -->
+<div class="tb-card p-4">
+    <ul class="nav nav-pills mb-3 border-bottom pb-2" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="passes-tab" data-bs-toggle="pill" data-bs-target="#tab-passes" type="button" role="tab">Passes &amp; Credentials</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="orders-tab" data-bs-toggle="pill" data-bs-target="#tab-orders" type="button" role="tab">Orders &amp; Payments</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="refunds-tab" data-bs-toggle="pill" data-bs-target="#tab-refunds" type="button" role="tab">Refunds Ledger</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="audit-tab" data-bs-toggle="pill" data-bs-target="#tab-audit" type="button" role="tab">Audit Trails</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabsContent">
+        <!-- Passes Tab -->
+        <div class="tab-pane fade show active" id="tab-passes" role="tabpanel">
+            <h6 class="fw-bold text-navy mb-3">Issued Digital Passes</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Pass #</th>
+                            <th>User</th>
+                            <th>Type</th>
+                            <th>Valid Until</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Passes)
+                        {
+                            <tr>
+                                <td><code>@p.PassNumber</code></td>
+                                <td>@(p.User?.FullName ?? p.UserId)</td>
+                                <td><span class="badge bg-light text-dark border">@p.PassType</span></td>
+                                <td>@p.ValidUntilUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                                <td>
+                                    <span class="badge @(p.Status == TravelBuddy.Models.PassStatus.Active ? "bg-success" : (p.Status == TravelBuddy.Models.PassStatus.Cancelled ? "bg-danger" : "bg-secondary"))">
+                                        @p.Status
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (p.Status == TravelBuddy.Models.PassStatus.Active)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger py-0" onclick="revokePass(@p.PassId)">Revoke</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div class="tab-pane fade" id="tab-orders" role="tabpanel">
+            <h6 class="fw-bold text-navy mb-3">Customer Transactions &amp; Orders</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order #</th>
+                            <th>User</th>
+                            <th>Product Snapshot</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var o in Model.Orders)
+                        {
+                            <tr>
+                                <td><code>@o.OrderNumber</code></td>
+                                <td>@(o.User?.FullName ?? o.UserId)</td>
+                                <td>@(o.Items.FirstOrDefault()?.ProductNameSnapshot ?? "Pass")</td>
+                                <td><strong>₹@o.Total.ToString("F2")</strong></td>
+                                <td>
+                                    <span class="badge @(o.Status == TravelBuddy.Models.OrderStatus.Paid ? "bg-success" : "bg-warning text-dark")">
+                                        @o.Status
+                                    </span>
+                                </td>
+                                <td>@o.CreatedAtUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Refunds Tab -->
+        <div class="tab-pane fade" id="tab-refunds" role="tabpanel">
+            <h6 class="fw-bold text-navy mb-3">Refund &amp; Cancellation Records</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Refund ID</th>
+                            <th>Amount</th>
+                            <th>Reason</th>
+                            <th>Gateway Ref</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Refunds)
+                        {
+                            <tr>
+                                <td>#@r.RefundId</td>
+                                <td class="text-danger fw-bold">₹@r.RefundAmount.ToString("F2")</td>
+                                <td>@r.Reason</td>
+                                <td><code>@r.GatewayRefundId</code></td>
+                                <td><span class="badge bg-success">@r.Status</span></td>
+                                <td>@r.RequestedAtUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Audit Tab -->
+        <div class="tab-pane fade" id="tab-audit" role="tabpanel">
+            <h6 class="fw-bold text-navy mb-3">Immutable System Audit Trail</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>Entity</th>
+                            <th>Entity ID</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model.AuditLogs)
+                        {
+                            <tr>
+                                <td>@a.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td><span class="badge bg-secondary">@a.Action</span></td>
+                                <td>@a.EntityType</td>
+                                <td>@a.EntityId</td>
+                                <td><small class="text-muted">@a.AfterJson</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    async function revokePass(passId) {
+        if (!confirm('Are you sure you want to revoke this pass?')) return;
+        try {
+            const resp = await fetch(`/api/v1/passes/${passId}/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: 'Revoked by System Administrator' })
+            });
+            const data = await resp.json();
+            alert(data.message);
+            window.location.reload();
+        } catch (e) {
+            alert('Failed to revoke pass.');
+        }
+    }
+</script>
+}

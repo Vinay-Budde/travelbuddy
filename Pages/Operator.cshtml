@@ -1,0 +1,250 @@
+@page
+@model TravelBuddy.Pages.OperatorModel
+@{
+    ViewData["Title"] = "Conductor On-Bus Validator";
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-10">
+        <!-- Main Validator Terminal Card -->
+        <div class="tb-card p-4 p-md-5 mb-4 border-2">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center border-bottom pb-3 mb-4 gap-2">
+                <div>
+                    <span class="badge bg-navy text-white px-3 py-1 mb-1">Terminal ID: OP-101</span>
+                    <h3 class="fw-bold mb-0 text-navy" style="color: #0F172A;">
+                        <i class="bi bi-upc-scan text-warning me-2"></i> On-Bus Ticket Validator
+                    </h3>
+                    <p class="text-muted small mb-0">Authorized Conductor: Ramesh Kumar &bull; Bus Vehicle #501</p>
+                </div>
+                <div>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 fw-semibold">
+                        <i class="bi bi-circle-fill text-success small me-1 animate-pulse"></i> Scanner Online
+                    </span>
+                </div>
+            </div>
+
+            <!-- Route & Context Configuration -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Active Corridor / Route</label>
+                    <select id="routeSelect" class="form-select form-select-lg fw-semibold">
+                        @foreach (var r in Model.Routes)
+                        {
+                            <option value="@r.RouteId">@r.Name (@r.RouteCode)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Validation Device POS Identifier</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-light"><i class="bi bi-tablet"></i></span>
+                        <input id="deviceRef" type="text" class="form-control fw-semibold" value="POS-BUS-501" readonly />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Laser Scanning Simulation Box -->
+            <div class="scanner-frame mb-4">
+                <div class="scanner-laser"></div>
+                <div class="text-center p-3">
+                    <i class="bi bi-qr-code-scan fs-1 text-secondary mb-2 d-block"></i>
+                    <small class="text-muted fw-semibold">Position passenger dynamic QR code in front of scanner</small>
+                </div>
+            </div>
+
+            <!-- Token Input with Scan Action -->
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-secondary">Scanned QR Bearer Token</label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-light"><i class="bi bi-key-fill text-muted"></i></span>
+                    <input id="tokenInput" type="text" class="form-control" placeholder="e.g. TB1.DxZZ3DUHzUXTVs..." autofocus />
+                    <button class="btn btn-saffron px-4 fw-bold" type="button" onclick="validateScannedToken()">
+                        <i class="bi bi-shield-check me-1"></i> Validate Pass
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small class="text-muted">Conductor validates passenger's rotating dynamic QR. Evaluates anti-passback and route coverage.</small>
+                </div>
+            </div>
+
+            <!-- One-Click Demo Shortcuts for instant testing -->
+            <div class="p-3 bg-light rounded-3 border mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-bold text-secondary"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Instant Demo Tokens (Active System Passes):</span>
+                    <span class="badge bg-secondary">Click to Auto-Scan</span>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    @if (Model.RecentPasses.Any())
+                    {
+                        @foreach (var p in Model.RecentPasses)
+                        {
+                            <button class="btn btn-sm btn-white border shadow-sm px-3 py-1" onclick="fetchAndFillToken(@p.PassId)">
+                                <i class="bi bi-ticket-perforated text-primary me-1"></i> @p.PassNumber 
+                                <span class="badge bg-light text-dark ms-1">@p.PassType</span>
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <span class="small text-muted">No active passes yet. Buy one in the catalogue first.</span>
+                    }
+                </div>
+            </div>
+
+            <!-- High-Contrast Prominent Result Box (as specified in SRS v4.0) -->
+            <div id="resultCard" class="card border-3 d-none shadow-sm">
+                <div class="card-body p-4 text-center">
+                    <div id="resultIcon" class="display-3 mb-2"></div>
+                    <h2 id="resultStatus" class="fw-bold mb-1">VALID</h2>
+                    <h5 id="resultMessage" class="text-muted mb-4">Pass verified successfully. Boarding Accepted.</h5>
+                    
+                    <div class="row g-3 justify-content-center text-start mx-auto" style="max-width: 540px;">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <span class="small text-muted d-block fw-semibold">Pass Identifier</span>
+                                <strong id="resPassRef" class="fs-5 text-dark">•••• 0000</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <span class="small text-muted d-block fw-semibold">Pass Category</span>
+                                <strong id="resPassType" class="fs-5 text-dark">Monthly Pass</strong>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <span class="small text-muted d-block fw-semibold">Corridor Eligibility</span>
+                                <strong id="resRoute" class="text-dark">All City Corridors</strong>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <span class="small text-muted d-block fw-semibold">Validity Boundary</span>
+                                <strong id="resValidUntil" class="text-dark">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Boarding Validation Logs -->
+        <div class="tb-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0 text-navy" style="color: #0F172A;">
+                    <i class="bi bi-clock-history me-2 text-primary"></i> Real-Time Conductor Validation Logs
+                </h5>
+                <span class="badge bg-light text-muted border">Anti-Passback &amp; Audit Trail</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Time (UTC)</th>
+                            <th>Pass Ref</th>
+                            <th>Route</th>
+                            <th>Result</th>
+                            <th>Message</th>
+                            <th>POS Device</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        @foreach (var log in Model.RecentLogs)
+                        {
+                            <tr>
+                                <td><code>@log.ValidatedAtUtc.ToString("HH:mm:ss")</code></td>
+                                <td><strong>@(log.Pass != null ? log.Pass.PassNumber : "N/A")</strong></td>
+                                <td>@(log.Route != null ? log.Route.RouteCode : "Corridor")</td>
+                                <td>
+                                    <span class="badge @(log.ResultCode == "VALID" ? "bg-success" : (log.ResultCode == "DUPLICATE_SCAN" ? "bg-warning text-dark" : "bg-danger"))">
+                                        @log.ResultCode
+                                    </span>
+                                </td>
+                                <td><small class="text-muted">@log.Message</small></td>
+                                <td><small class="text-muted">@log.DeviceReference</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    async function fetchAndFillToken(passId) {
+        try {
+            const resp = await fetch(`/api/v1/passes/${passId}/qr`);
+            if (resp.ok) {
+                const data = await resp.json();
+                document.getElementById('tokenInput').value = data.token;
+                validateScannedToken();
+            } else {
+                alert('Could not fetch token for this pass.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function validateScannedToken() {
+        const token = document.getElementById('tokenInput').value.trim();
+        if (!token) {
+            alert('Please provide or scan a QR token.');
+            return;
+        }
+
+        const routeId = document.getElementById('routeSelect').value;
+        const deviceRef = document.getElementById('deviceRef').value;
+
+        try {
+            const resp = await fetch('/api/v1/validations/qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    qrToken: token,
+                    routeId: parseInt(routeId),
+                    deviceReference: deviceRef
+                })
+            });
+
+            const data = await resp.json();
+            displayResult(data);
+        } catch (err) {
+            alert('Validation service communication error.');
+        }
+    }
+
+    function displayResult(res) {
+        const card = document.getElementById('resultCard');
+        card.classList.remove('d-none');
+
+        const statusEl = document.getElementById('resultStatus');
+        const iconEl = document.getElementById('resultIcon');
+        const msgEl = document.getElementById('resultMessage');
+
+        statusEl.innerText = res.status;
+        msgEl.innerText = res.message;
+
+        if (res.success && res.status === 'VALID') {
+            card.className = 'card border-3 border-success bg-white shadow-sm';
+            statusEl.className = 'fw-bold mb-1 text-success';
+            iconEl.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+        } else if (res.status === 'DUPLICATE_SCAN') {
+            card.className = 'card border-3 border-warning bg-white shadow-sm';
+            statusEl.className = 'fw-bold mb-1 text-warning';
+            iconEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-warning"></i>';
+        } else {
+            card.className = 'card border-3 border-danger bg-white shadow-sm';
+            statusEl.className = 'fw-bold mb-1 text-danger';
+            iconEl.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+        }
+
+        document.getElementById('resPassRef').innerText = res.passReference || 'N/A';
+        document.getElementById('resPassType').innerText = res.passType || '-';
+        document.getElementById('resRoute').innerText = res.routeName || 'All Eligible Corridors';
+        document.getElementById('resValidUntil').innerText = res.validUntilUtc ? new Date(res.validUntilUtc).toLocaleString() : '-';
+    }
+</script>
+}
