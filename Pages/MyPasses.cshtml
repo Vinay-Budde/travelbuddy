@@ -123,11 +123,22 @@
     let countdownTimer = null;
     let timeLeft = 30;
 
+    // Automatically load the first active pass's dynamic QR code on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        const firstActiveBtn = document.querySelector('button[onclick*="loadDynamicQr"]');
+        if (firstActiveBtn) {
+            firstActiveBtn.click();
+        }
+    });
+
     async function loadDynamicQr(passId, passNumber) {
         activePassId = passId;
         document.getElementById('qrPlaceholder').classList.add('d-none');
         document.getElementById('qrDisplay').classList.remove('d-none');
         document.getElementById('qrPassRef').innerText = 'Pass: ' + passNumber;
+
+        // Smooth scroll into view on mobile / smaller viewports
+        document.getElementById('qrDisplay').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         await fetchQrToken();
 
